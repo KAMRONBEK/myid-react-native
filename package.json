@@ -7,6 +7,7 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
+    "ios:pod:reset": "cd ios && pod deintegrate && pod setup && pod install --verbose && cd ..",
     "test": "jest"
   },
   "dependencies": {
