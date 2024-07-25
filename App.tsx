@@ -8,9 +8,11 @@ const App = () => {
     if (MyIdModule) {
       const myidEvents = new NativeEventEmitter(MyIdModule);
 
-      const onSuccess = () => console.log('onSuccess received');
+      const onSuccess = (event: any) =>
+        console.log('onSuccess received', event);
       const onError = (event: any) => console.log('onError received', event);
-      const onUserExited = () => console.log('onUserExited received');
+      const onUserExited = (event: any) =>
+        console.log('onUserExited received', event);
 
       myidEvents.addListener('onSuccess', onSuccess);
       myidEvents.addListener('onError', onError);

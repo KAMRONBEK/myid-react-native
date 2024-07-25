@@ -10,6 +10,7 @@ buildscript {
     repositories {
         google()
         mavenCentral()
+        maven { url "https://artifactory.aigroup.uz:443/artifactory/myid" }
     }
     dependencies {
         classpath("com.android.tools.build:gradle")
