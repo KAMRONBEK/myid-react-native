@@ -44,33 +44,42 @@ class MyIdModule: RCTEventEmitter {
     return ["onSuccess", "onError", "onUserExited"]
   }
   
-  @objc func startMyId() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            let config = MyIdConfig()
-            config.clientId = "emit_sdk-pEXr5TMHOHYL5QcP2JjObte94zS0vPpLnjbqTigm" // Your Client ID
-            config.clientHash = "f79e7195-cf94-4bdd-9115-6c08033e191c" // Your Client Hash
-            config.clientHashId = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwgGX9AQqActMnsW5K++GXYYCynxB/RQVMRSBsYCjSEmIrKaV8InLDxoG+WE2AY7lGyoo9qkxzKg1Vk6tW8pBW5PpNSH6xN1P9ufEnHQWuXCpdT+UkAoVMGnoYQ6glp9mZVlPEottslt6THAGa9wf3fMku97UdsuSctOeGXDr3LnsCFB7ZmaracTQFQ41v6SMbGZX2NsIKVtlJMZqAle9sI3crk9RGRg7Os8f1NolNNFuWQEjx/DpaSjCHGMMscWkSX7GEqJiVSNybGquHe1vjtswoT3oO2Mr+uCfz6Owx/d0/0Q8YWxvhorxbGT0CEw1m0CU+JbWh2lrgf1jHvBULQIDAQAB" // Your Client Hash ID
-            config.passportData = self.passportTextField.text ?? ""
-            config.dateOfBirth = self.dobTextField.text ?? ""
+  @objc(startMyId:clientHash:clientHashId:passportData:dateOfBirth:buildMode:)
+  func startMyId(clientId: String, clientHash: String, clientHashId: String, passportData: String, dateOfBirth: String, buildMode: String) {
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+          let config = MyIdConfig()
+          config.clientId = clientId
+          config.clientHash = clientHash
+          config.clientHashId = clientHashId
+          config.passportData = passportData
+          config.dateOfBirth = dateOfBirth
 
-            config.buildMode = MyIdBuildMode.PRODUCTION
-            config.withPhoto = true
-            
-            MyIdClient.start(withConfig: config, withDelegate: self)
-        }
-    }
+          let mode = buildMode == "PRODUCTION" ? MyIdBuildMode.PRODUCTION : MyIdBuildMode.DEBUG
+          config.buildMode = mode
+          config.withPhoto = true
+          config.entryType = MyIdEntryType.FACE
+          
+          MyIdClient.start(withConfig: config, withDelegate: self)
+      }
+  }
 }
 
 extension MyIdModule: MyIdClientDelegate {
   func onSuccess(result: MyIdSDK.MyIdResult) {
-    sendEvent(
-      withName: "onSuccess",
-      body: [
-        "code": result.code,
-        "comparison": result.comparisonValue
-      ]
-    )
-  }
+         // Assuming `result.image` is a UIImage
+         if let image = result.image {
+             if let imageData = image.jpegData(compressionQuality: 1) { // Compression quality can be adjusted
+                 let base64String = imageData.base64EncodedString(options: .lineLength64Characters)
+                 sendEvent(withName: "onSuccess", body: ["code": result.code, "comparison": result.comparisonValue, "image": base64String])
+             } else {
+                 // Handle failure to get image data
+                 sendEvent(withName: "onError", body: ["message": "Failed to convert image to Data", "code": 0])
+             }
+         } else {
+             // Handle the case where there is no image
+             sendEvent(withName: "onError", body: ["message": "No image available", "code": 0])
+         }
+     }
   
   func onError(exception: MyIdSDK.MyIdException) {
     sendEvent(

@@ -11,13 +11,14 @@
 
 @interface RCT_EXTERN_MODULE(MyIdModule, RCTEventEmitter)
 
-RCT_EXTERN_METHOD(startMyId)
+//RCT_EXTERN_METHOD(startMyId)
 
-// RCT_EXTERN_METHOD(startMyId:
-//  (NSString *) clientId
-//  (NSString *) passportData
-//  (NSString *) dateOfBirth
-// )
+RCT_EXTERN_METHOD(startMyId:(NSString *)clientId
+                  clientHash:(NSString *)clientHash
+                  clientHashId:(NSString *)clientHashId
+                  passportData:(NSString *)passportData
+                  dateOfBirth:(NSString *)dateOfBirth
+                  buildMode:(NSString *)buildMode)
 
 @end
 
