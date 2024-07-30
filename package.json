@@ -8,9 +8,11 @@
     "lint": "eslint .",
     "start": "react-native start",
     "ios:pod:reset": "cd ios && pod deintegrate && pod setup && pod install --verbose && cd ..",
-    "test": "jest"
+    "test": "jest",
+    "adb": "adb reverse tcp:8081 tcp:8081"
   },
   "dependencies": {
+    "@react-native-community/clipboard": "^1.5.1",
     "react": "18.2.0",
     "react-native": "0.74.3"
   },

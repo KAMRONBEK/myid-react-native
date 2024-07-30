@@ -1,14 +1,12 @@
 package com.myid
 
+import android.app.Activity
+import android.content.Intent
 import android.graphics.Bitmap
 import android.util.Base64
-import com.facebook.react.bridge.Arguments
-import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.bridge.ReactContext
-import com.facebook.react.bridge.ReactContextBaseJavaModule
-import com.facebook.react.bridge.ReactMethod
-import com.facebook.react.bridge.WritableMap
-import com.facebook.react.modules.core.DeviceEventManagerModule
+import android.util.Log
+import com.facebook.react.bridge.*
+import com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter
 import uz.myid.android.sdk.capture.MyIdClient
 import uz.myid.android.sdk.capture.MyIdConfig
 import uz.myid.android.sdk.capture.MyIdException
@@ -19,59 +17,93 @@ import uz.myid.android.sdk.capture.model.MyIdCameraShape
 import uz.myid.android.sdk.capture.model.MyIdEntryType
 import uz.myid.android.sdk.capture.model.MyIdGraphicFieldType
 import java.io.ByteArrayOutputStream
-import java.util.Locale
-import javax.annotation.Nonnull
+import java.util.*
 
-
-class MyIdModule(private val reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext), MyIdResultListener {
+class MyIdModule(private val reactContext: ReactApplicationContext) :
+    ReactContextBaseJavaModule(reactContext), MyIdResultListener, ActivityEventListener {
 
     private val client = MyIdClient()
 
-    @Nonnull
-    override fun getName(): String {
-        return "MyIdModule"
+    init {
+        reactContext.addActivityEventListener(this)
     }
+
+    override fun getName(): String = "MyIdModule"
 
     @ReactMethod
     fun addListener(eventName: String?) {
+        // Method to add listeners (placeholder for actual implementation if needed)
     }
 
     @ReactMethod
     fun removeListeners(count: Int?) {
+        // Method to remove listeners (placeholder for actual implementation if needed)
     }
 
     @ReactMethod
-    fun startMyId() {
-//        clientId: String, clientHash: String, clientHashId: String, passportData: String, dateOfBirth: String, buildMode: String, promise: Promise
-//        val mode = if (buildMode == "PRODUCTION") MyIdBuildMode.PRODUCTION else MyIdBuildMode.DEBUG
-
-        val config: MyIdConfig = MyIdConfig.Builder("YOUR_CLIENT_ID")
-            .withPassportData("AB1234567")
-            .withBirthDate("01.09.19901")
-            .withBuildMode(MyIdBuildMode.PRODUCTION)
+    fun startMyId(clientId: String, clientHash: String, clientHashId: String, passportData: String, dateOfBirth: String, buildMode: String) {
+        Log.d("MyIdModule", "startMyId called with clientId: $clientId")
+        val mode = if (buildMode == "PRODUCTION") MyIdBuildMode.PRODUCTION else MyIdBuildMode.DEBUG
+        val config = MyIdConfig.Builder(clientId)
+            .withClientHash(clientHash, clientHashId)
+            .withPassportData(passportData)
+            .withBirthDate(dateOfBirth)
+            .withBuildMode(mode)
             .withEntryType(MyIdEntryType.FACE)
-            .withLocale(Locale("ru"))
+            .withLocale(Locale("en"))
             .withCameraShape(MyIdCameraShape.CIRCLE)
             .build()
 
+        reactContext.currentActivity?.let {
+            val intent = client.createIntent(it, config)
+            it.startActivityForResult(intent, MY_ID_REQUEST_CODE)
+        } ?: Log.e("MyIdModule", "Current activity is null.")
+    }
 
-        try {
-            val intent = client.createIntent(reactContext.currentActivity!!, config)
-            reactContext.currentActivity?.startActivityForResult(intent, 1)
-        } catch (e: Exception) {
-            println(e.message)
+    override fun onActivityResult(activity: Activity?, requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == MY_ID_REQUEST_CODE) {
+            Log.d("onActivity",data.toString())
+            client.handleActivityResult(resultCode,  this)
         }
     }
 
-   override fun onSuccess(result: MyIdResult) {
+    override fun onNewIntent(p0: Intent?) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onSuccess(result: MyIdResult) {
+        Log.d("MyIdModule", "onSuccess called")
         val bitmap = result.getGraphicFieldImageByType(MyIdGraphicFieldType.FACE_PORTRAIT)
         val base64Image = bitmap?.let { encodeToBase64(it) }
+        Log.d("base64Image",base64Image!!)
+        val params = Arguments.createMap().apply {
+            putString("code", result.code)
+            putDouble("comparison", result.comparison.toDouble())
+            putString("image", base64Image)
+        }
+        sendEvent("onSuccess", params)
+    }
 
-        val map = Arguments.createMap()
-        map.putString("code", result.code)
-        map.putDouble("comparison", result.comparison.toDouble())
-        map.putString("image", base64Image)
-        sendEvent(reactContext,"onSuccess", map)
+    override fun onError(e: MyIdException) {
+        Log.d("MyIdModule", "onError called")
+        val params = Arguments.createMap().apply {
+            putString("message", e.message)
+            putInt("code", e.code)
+        }
+        sendEvent("onError", params)
+    }
+
+    override fun onUserExited() {
+        Log.d("MyIdModule", "onUserExited called")
+        val params = Arguments.createMap().apply {
+            putString("message", "User exited SDK")
+        }
+        sendEvent("onUserExited", params)
+    }
+
+    private fun sendEvent(eventName: String, params: WritableMap) {
+        Log.d("MyIdModule", "sending event $eventName")
+        reactContext.getJSModule(RCTDeviceEventEmitter::class.java).emit(eventName, params)
     }
 
     private fun encodeToBase64(bitmap: Bitmap): String {
@@ -79,22 +111,8 @@ class MyIdModule(private val reactContext: ReactApplicationContext) : ReactConte
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
         return Base64.encodeToString(outputStream.toByteArray(), Base64.DEFAULT)
     }
-    override fun onError(e: MyIdException) {
-        sendEvent(reactContext,"onError", Arguments.createMap().apply {
-            putString("message", e.message)
-            putInt("code", e.code)
-        })
-    }
 
-    override fun onUserExited() {
-        sendEvent(reactContext,"onUserExited", Arguments.createMap().apply {
-            putString("message", "User exited SDK")
-        })
-    }
-
-    private fun sendEvent(reactContext: ReactContext, eventName: String, params: WritableMap?) {
-        reactContext
-        .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-        .emit(eventName, params)
+    companion object {
+        private const val MY_ID_REQUEST_CODE = 1
     }
 }
