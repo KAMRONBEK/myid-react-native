@@ -1,3 +1,7 @@
+> [!WARNING]
+> **This 2024 demo is superseded.** For MyID in React Native or Expo, use the maintained package:
+> **[@softwhere-uz/react-native-myid](https://github.com/softwhere-uz/react-native-myid)** — MyID **3.1.x session flow** (the legacy `clientId` flow used here was removed by the SDK), complete **Expo config plugin**, New Architecture, typed errors, published on [npm](https://www.npmjs.com/package/@softwhere-uz/react-native-myid) with provenance.
+
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
 # Getting Started
